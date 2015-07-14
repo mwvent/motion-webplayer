@@ -5,10 +5,11 @@ var startTime = '00:00:00';
 var playState = 0;
 var liveView = false;
 var currentFeed = '';
-
+var feeds = new Array();
 var frame_list;
 
 $( document ).ready(function() {
+  updateFeedsList();
   $("#image1").load(function() {
     setTimeout(function() {
       onNewFrame();
@@ -18,6 +19,27 @@ $( document ).ready(function() {
     dateClick();
   });
 });
+
+function updateFeedsList() {
+  $.ajax({
+    url: "feedlist.php",
+    dataType: "json",
+    success: function(data) {
+      feeds=data;
+      var feedsHTML = "";
+      for (currentFeedIndex in feeds) {
+	feedsHTML += "<span id='" + feeds[currentFeedIndex][0] + 
+		"' class='feedUnSelect' onClick=\"enterFeed('" + feeds[currentFeedIndex][0] + "')\">" +
+		feeds[currentFeedIndex][0] + "</span>";
+      }
+      destDiv = document.getElementById('feedbuttons_div');
+      destDiv.innerHTML = feedsHTML;
+    },
+    error: function (request, status, error) {
+      alert(request.responseText);
+    }
+  });
+}
 
 function updateProgressBar() {
   var progressBar = document.getElementById('progress-bar');
@@ -38,35 +60,35 @@ function updateProgressBar() {
   progressBar.value = Number(frame_list[targetFrame]['frame_seconds']);
 }
 
-function onNewFrame()
-{
+function onNewFrame() {
   updateProgressBar();
-  if(playState == 0) // Stop
-  {
-  }
-  else if(playState == 2) // Play
-  {
-    if( (targetFrame + 1) < frame_list.length ) {
-      frame+=frameStep;
-      playbackAction('play');
-    }
-  }
-  else if(playState == -2) // back Play
-  {
-    if( (targetFrame - 1) > -1 ) {
-      frame-=frameStep;
-      playbackAction('bplay');
-    }
-  }
-  else if(playState == 1) // Step
-  {
-    frame+=frameStep;
-    playState = 0;
-  }
-  else if(playState == -1) // back Step
-  {
-    frame-=frameStep;
-    playState = 0;
+  switch(playState) {
+    case 0: // stopped - no next frame to load
+      break;
+    case 2: // playing forwards
+      if( (targetFrame + 1) < frame_list.length ) {
+	frame+=frameStep;
+	playbackAction('play');
+      }
+      break;
+    case -2: // playing backwards
+      if( (targetFrame - 1) > -1 ) {
+	frame-=frameStep;
+	playbackAction('bplay');
+      }
+      break;
+    case 1: // step forward one frame & stop
+      if( (targetFrame + 1) < frame_list.length ) {
+	frame+=frameStep;
+	playState = 0;
+      }
+      break;
+    case -1: // step backwards one frame & stop
+      if( (targetFrame - 1) > -1 ) {
+	frame-=frameStep;
+	playState = 0;
+      }
+      break;
   }
   updateFrameTimeAndIndexTextBoxes();
 }
@@ -121,7 +143,6 @@ function playbackAction(action) {
     case 'play':
       playState = 2;
       break;
-      break;
     case 'bplay':
       playState = -2;
       break;
@@ -168,12 +189,7 @@ function setFrame(newFrame, force) // see force as a default parameter with fals
 
 function printFeeds()
 {
-  for(i=0; i<feeds.length; i++)
-  {
-    
-    document.write("  <td id='" + feeds[i][0] + "' class='feedUnSelect' onClick=\"enterFeed('" + feeds[i][0] + "')\">");
-    document.write("  <p>" + feeds[i][0] + "</p>");
-  }
+  
 }
 
 function printDateDropdown(feedName)

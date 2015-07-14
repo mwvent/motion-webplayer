@@ -16,6 +16,61 @@
   
   Author: Matthew Watts 2015
 */
-   .feedSelect 		{ background-color: #ffff00; cursor: pointer; }
-   .feedUnSelect	{ cursor: pointer; }
-   .feedhover		{ background-color: #ddddff; cursor: pointer; }
+
+.body {
+  
+}
+
+#feedbuttons_div {
+  height: 25px;
+}
+
+.feedSelect {
+  background: #f2e716;
+  background-image: -webkit-linear-gradient(top, #f2e716, #8c8838);
+  background-image: -moz-linear-gradient(top, #f2e716, #8c8838);
+  background-image: -ms-linear-gradient(top, #f2e716, #8c8838);
+  background-image: -o-linear-gradient(top, #f2e716, #8c8838);
+  background-image: linear-gradient(to bottom, #f2e716, #8c8838);
+  -webkit-border-radius: 28;
+  -moz-border-radius: 28;
+  border-radius: 28px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 12px;
+  padding: 3px 6px 3px 7px;
+  text-decoration: none;
+}
+
+.feedUnSelect {
+  background: #696a73;
+  background-image: -webkit-linear-gradient(top, #696a73, #24241b);
+  background-image: -moz-linear-gradient(top, #696a73, #24241b);
+  background-image: -ms-linear-gradient(top, #696a73, #24241b);
+  background-image: -o-linear-gradient(top, #696a73, #24241b);
+  background-image: linear-gradient(to bottom, #696a73, #24241b);
+  -webkit-border-radius: 28;
+  -moz-border-radius: 28;
+  border-radius: 28px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 12px;
+  padding: 3px 6px 3px 7px;
+  text-decoration: none;
+}
+
+.feedUnSelect:hover {
+  background: #3cb0fd;
+  background-image: -webkit-linear-gradient(top, #3cb0fd, #3498db);
+  background-image: -moz-linear-gradient(top, #3cb0fd, #3498db);
+  background-image: -ms-linear-gradient(top, #3cb0fd, #3498db);
+  background-image: -o-linear-gradient(top, #3cb0fd, #3498db);
+  background-image: linear-gradient(to bottom, #3cb0fd, #3498db);
+  text-decoration: none;
+}
+
+#feedbuttons_div img {
+  height: 25px;
+}
+
+
