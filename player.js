@@ -1,26 +1,26 @@
-var image_obk = new Image;
-var frame=0;
+// psuedo enum
+var PLAYSTATE_NOCHANGE = -2;
+var PLAYSTATE_RESET = -1;
+var PLAYSTATE_STOPPED = 0;
+var PLAYSTATE_PLAY_FORWARDS = 1;
+var PLAYSTATE_PLAY_BACKWARDS = 2;
+var PLAYSTATE_STEP_FORWARDS = 3;
+var PLAYSTATE_STEP_BACKWARDS = 4;
+var PLAYSTATE_STEP_START = 5;
+var PLAYSTATE_STEP_END = 6;
+
+// globals
+var frame=-1;
 var frameStep = 1;
-var startTime = '00:00:00';
-var playState = 0;
-var liveView = false;
+var playState = PLAYSTATE_STOPPED;
 var currentFeed = '';
 var feeds = new Array();
-var frame_list;
+var frame_list = new Array();
+
+
 
 $( document ).ready(function() {
-  updateFeedsList();
-  $("#image1").load(function() {
-    setTimeout(function() {
-      onNewFrame();
-    }, 1);
-  });
-  $("#txtFeedDate").change(function() {
-    dateClick();
-  });
-});
-
-function updateFeedsList() {
+  // Update Feeds List
   $.ajax({
     url: "feedlist.php",
     dataType: "json",
@@ -29,173 +29,135 @@ function updateFeedsList() {
       var feedsHTML = "";
       for (currentFeedIndex in feeds) {
 	feedsHTML += "<span id='" + feeds[currentFeedIndex][0] + 
-		"' class='feedUnSelect' onClick=\"enterFeed('" + feeds[currentFeedIndex][0] + "')\">" +
-		feeds[currentFeedIndex][0] + "</span>";
+		     "' data-feed='" + feeds[currentFeedIndex][0] + 
+		     "' class='feedUnSelect'>" + feeds[currentFeedIndex][0] +"</span>";
       }
-      destDiv = document.getElementById('feedbuttons_div');
+      destDiv = document.getElementById('feedbuttons_container');
       destDiv.innerHTML = feedsHTML;
     },
     error: function (request, status, error) {
       alert(request.responseText);
     }
   });
+  $("#image1").load(function() {
+      updateUIPositionInfo();
+      loadNextFrame(PLAYSTATE_NOCHANGE);
+  });
+  $('#feedbuttons_container').on('click', '.feedUnSelect', function() {
+    enterFeed($(this).data("feed"));
+  });
+});
+
+function loadNextFrame(newPlayState) {
+  if(newPlayState !== PLAYSTATE_NOCHANGE) {
+    playState = newPlayState;
+  }
+  updateUIPositionInfo();
+  frame=Number(frame);
+  oldFrame = frame;
+  switch(playState) {
+    case PLAYSTATE_STOPPED: // stopped - no next frame to load
+      break;
+    case PLAYSTATE_PLAY_FORWARDS: // playing forwards
+      if( (frame + frameStep) < frame_list.length ) {
+	frame+=frameStep;
+      } else {
+	playState=PLAYSTATE_STOPPED;
+      }
+      break;
+    case PLAYSTATE_PLAY_BACKWARDS: // playing backwards
+      if( (frame - frameStep) > -1 ) {
+	frame-=frameStep;
+      } else {
+	playState=PLAYSTATE_STOPPED;
+      }
+      break;
+    case PLAYSTATE_STEP_FORWARDS: // step forward one frame & stop
+      if( (frame + frameStep) < frame_list.length ) {
+	frame+=frameStep;
+	playState = PLAYSTATE_STOPPED;
+      } else {
+	playState = PLAYSTATE_STOPPED;
+      }
+      break;
+    case PLAYSTATE_STEP_BACKWARDS: // step backwards one frame & stop
+      if( (frame - frameStep) > -1 ) {
+	frame-=frameStep;
+	playState = PLAYSTATE_STOPPED;
+      } else {
+	playState = PLAYSTATE_STOPPED;
+      }
+      break;
+    case PLAYSTATE_STEP_END:
+      frame = frame_list.length -1;
+      break;
+    case PLAYSTATE_STEP_START:
+      frame = 0;
+      break;
+    case PLAYSTATE_RESET:
+      playState = PLAYSTATE_STOPPED;
+      oldFrame = -1;
+      break;
+  }
+  if(oldFrame !== frame) {
+    var fileHash = frame_list[Number(frame)]['frame_filehash'];
+    imgUrl = 'getframe.php?frame=' + encodeURIComponent(fileHash);
+    img = document.getElementById('image1');
+    img.src = imgUrl;
+  }
 }
 
-function updateProgressBar() {
+function updateUIPositionInfo() {
+  // check if any frame is selected
+  if(frame == -1) {
+    return;
+  }
+  
+  // select progress bar and ensure it is ready
   var progressBar = document.getElementById('progress-bar');
   progressBar.max = 24 * 60 * 60; // seconds in a day
-  if(startTime != '')
-  {
-    startTime_frameindex = getFrameFromStartTime(startTime);
-  } else {
-    startTime_frameindex = 0;
-  }
-  targetFrame = Number(frame) + Number(startTime_frameindex);
-  if(targetFrame > frame_list.length) {
-    targetFrame = frame_list.length;
-  }
-  if(targetFrame < 0) {
-    targetFrame = 0;
-  }
-  progressBar.value = Number(frame_list[targetFrame]['frame_seconds']);
-}
-
-function onNewFrame() {
-  updateProgressBar();
-  switch(playState) {
-    case 0: // stopped - no next frame to load
-      break;
-    case 2: // playing forwards
-      if( (targetFrame + 1) < frame_list.length ) {
-	frame+=frameStep;
-	playbackAction('play');
-      }
-      break;
-    case -2: // playing backwards
-      if( (targetFrame - 1) > -1 ) {
-	frame-=frameStep;
-	playbackAction('bplay');
-      }
-      break;
-    case 1: // step forward one frame & stop
-      if( (targetFrame + 1) < frame_list.length ) {
-	frame+=frameStep;
-	playState = 0;
-      }
-      break;
-    case -1: // step backwards one frame & stop
-      if( (targetFrame - 1) > -1 ) {
-	frame-=frameStep;
-	playState = 0;
-      }
-      break;
-  }
-  updateFrameTimeAndIndexTextBoxes();
-}
-
-function updateFrameTimeAndIndexTextBoxes() {
-  // convert frame Number to hh:mm:ss & frame number
-  currentFrame = Number(frame) + Number(startTime_frameindex);
-  currentFrameFullSeconds = frame_list[Number(frame) + Number(startTime_frameindex)]['frame_seconds'];
-  currentFrameIndex = frame_list[Number(frame) + Number(startTime_frameindex)]['subframe_index'];
+  
+  // get the time from the current frame (in seconds from midnight) - convert into hh mm ss and subframe number
+  currentFrameFullSeconds = frame_list[Number(frame)]['frame_seconds'];
+  currentFrameIndex = frame_list[Number(frame)]['subframe_index'];
   currentFrameHours = Math.floor(currentFrameFullSeconds / 3600);
   currentFrameHours_remainder = currentFrameFullSeconds%3600;
   currentFrameMins = Math.floor(currentFrameHours_remainder / 60);
   currentFrameSeconds = currentFrameHours_remainder%60;
-  if(currentFrameHours < 10)
-    currentFrameHours = '0' + currentFrameHours;
-  if(currentFrameMins < 10)
-    currentFrameMins = '0' + currentFrameMins;
-  if(currentFrameSeconds < 10)
-    currentFrameSeconds = '0' + currentFrameSeconds;
-  document.getElementById('textTime').value = currentFrameHours+":"+currentFrameMins+":"+currentFrameSeconds+"";
-  //startTime = currentFrameHours+":"+currentFrameMins+":"+currentFrameSeconds+"";
-  document.getElementById('textFrame').value = 0;
-  updateProgressBar();
+  
+  // pad with zeros
+  currentFrameHours = ("0" + currentFrameHours).slice (-2);
+  currentFrameMins = ("0" + currentFrameMins).slice (-2);
+  currentFrameSeconds = ("0" + currentFrameSeconds).slice (-2);
+  currentFrameIndex = ("0" + currentFrameIndex).slice (-2);
+  
+  // update document
+  $('#frameTime_HH').attr('value',currentFrameHours);
+  $('#frameTime_MM').attr('value',currentFrameMins);
+  $('#frameTime_SS').attr('value',currentFrameSeconds);
+  $('#frameTime_FF').attr('value',currentFrameIndex);
+  progressBar.value = Number(frame_list[Number(frame)]['frame_seconds']);
 }
 
-function getFrameFromStartTime(startTime) {
-  if(startTime[0]=="0") { return 0; }
-  var time_parts = startTime[0].split(':');
-  startTime_seconds = Number( time_parts[0] * 60 * 60 ) + Number( time_parts[1] * 60 ) + Number(time_parts[2]);
+function getFrameNearestToSeconds(secondsTime) {
   found_frame = 0;
   for (var i in frame_list) {
-    if(frame_list[i]['frame_seconds'] < startTime_seconds) {
+    if(frame_list[i]['frame_seconds'] < secondsTime) {
       found_frame = i;
     }
   }
   return found_frame;
 }
 
-function playbackAction(action) {
-  /*
-  fd = document.getElementById('txtFeedDate');
-  feedDate = fd.options[fd.selectedIndex].value;
-  */
-  if(startTime != '')
-  {
-    startTime_frameindex = getFrameFromStartTime(startTime);
-  } else {
-    startTime_frameindex = 0;
-  }
-  
-  switch(action) {
-    case 'play':
-      playState = 2;
-      break;
-    case 'bplay':
-      playState = -2;
-      break;
-    case 'bstep':
-      playState = -1;
-      break;
-    case 'step':
-      playState = 1;
-      break;
-    case 'first':
-      playState = 0;
-      frame = 0;
-      startTime_frameindex = 0;
-      startTime = document.getElementById('textTime').value;
-      // updateFrameTimeAndIndexTextBoxes();
-      break;
-    case 'last':
-      playState = 0;
-      frame = frame_list.length -1;
-      startTime_frameindex = 0;
-      startTime = document.getElementById('textTime').value;
-      //updateFrameTimeAndIndexTextBoxes();
-      break;
-    case 'stop':
-      playState = 0;
-      break;
-  }
-  var fileHash = frame_list[Number(frame) + Number(startTime_frameindex)]['frame_filehash'];
-  imgUrl = 'getframe.php?frame=' + encodeURIComponent(fileHash);
-  updateFrameTimeAndIndexTextBoxes();
-  img = document.getElementById('image1');
-  img.src = imgUrl;
-}
-
-function setFrame(newFrame, force) // see force as a default parameter with false
-{          
-  newFrame = parseInt(newFrame);
-  if(frame != newFrame || force!=null) {
-    frame = newFrame;
-    updateFrameTimeAndIndexTextBoxes();
-    playbackAction('stop');
-  }
-}
-
-function printFeeds()
-{
-  
-}
-
 function printDateDropdown(feedName)
 {
   dl = document.getElementById('txtFeedDate');
-  oldFeedDate = dl.options[dl.selectedIndex].value;
+  
+  if (typeof dl.options[dl.selectedIndex].value !== 'undefined') {
+    oldFeedDate = dl.options[dl.selectedIndex].value;
+  } else {
+    oldFeedDate = '';
+  }
 
   for(i = dl.options.length-1; i>=0; i--)
     dl.options[i] = null;
@@ -229,6 +191,10 @@ function dateClick()
 
 function updateTimeline()
 {
+  $('#footer_container').css("display", "none");
+  $('#loading_frameimage').css("display", "block");
+  $('#image1').css("display", "none");
+  frame=-1;
   fd = document.getElementById('txtFeedDate');
   feedDate = fd.options[fd.selectedIndex].value;
   if(currentFeed != '') {
@@ -242,8 +208,12 @@ function updateTimeline()
   xmlhttp.onreadystatechange = function() {
       if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
 	  frame_list = JSON.parse(xmlhttp.responseText);
-	  document.getElementById('timeline').src = timeUrl;
-	  setFrame(0, true);
+	  $('#timeline').attr('src',timeUrl);
+	  frame = 0;
+	  loadNextFrame(PLAYSTATE_RESET);
+	  $('#footer_container').css("display", "block");
+	  $('#loading_frameimage').css("display", "none");
+	  $('#image1').css("display", "block");
       }
   }
   xmlhttp.open("GET", framesUrl, true);
@@ -252,14 +222,16 @@ function updateTimeline()
 
 function enterFeed(feedName)
 {
-  if(currentFeed != '')
+  if(currentFeed != '') {
     feedUnSelect(currentFeed);
+  } else {
+    $('#loading_frameimage').attr('src','images/loading_spinner.gif');
+  }
   feedSelect(feedName);
 
   currentFeed = feedName;
 
   printDateDropdown(feedName);
-  setFrame(0, true)
   updateTimeline();
 }
 
@@ -275,43 +247,7 @@ function feedUnSelect(feedName)
   td.className = 'feedUnSelect';
 }
 
-function onKeyPressOnlyNumber(e)
-{
-  if(e && e.which)
-    c = e.which;
-  else
-    c = e.keyCode;
-
-  if( c == 13 || c == 8 || c == 37 || c == 39 || c == 35 || c == 36 || c == 46 || c ==9) // delete, home, end etc.
-    return true;
-  if(c < 48 || c > 57)
-    return false;
-  return true;
-}
-function stopOnKeyEnter(e)
-{
-  if(e && e.which)
-    c = e.which;
-  else
-    c = e.keyCode;
-
-  if(c == 13)
-    playbackAction('stop');
-}
-
-function setTime(newTime, force)
-{
-  newTime = newTime.match(/[0-9]{2}:[0-9]{2}:[0-9]{2}/);
-  if((newTime != '' && newTime != startTime) || force == true)
-  {
-    frame = 0;
-    startTime = newTime;
-    startTime_frameindex = getFrameFromStartTime(newTime);
-    updateFrameTimeAndIndexTextBoxes();
-    
-    playbackAction('stop');
-  }
-}
+var saved_time_selection=0;
 
 function tl_move(e)
 {
@@ -335,28 +271,41 @@ function tl_move(e)
     }
   }
   rx = rx - iPos;
-  mins=parseInt(rx * (1440/(document.getElementById('timeline').width-2)));
-  if (mins < 0) { mins = 0; }
-  if (mins > 1439) { mins = 1439; }
-
-  hrs=parseInt(mins / 60);
-  mins%=60;
-
-  if(hrs < 10)
-    hrs = '0' + hrs;
-  if(mins < 10)
-    mins = '0' + mins;
-  document.getElementById('textTime').value = hrs + ':' + mins + ":00";
+  
+  saved_time_selection_pre=parseInt(rx * (86400/(document.getElementById('timeline').width-2)));
+  saved_time_selection=getFrameNearestToSeconds(saved_time_selection_pre);
+  
+  // get the time from the current frame (in seconds from midnight) - convert into hh mm ss and subframe number
+  currentFrameFullSeconds = frame_list[Number(saved_time_selection)]['frame_seconds'];
+  currentFrameIndex = frame_list[Number(frame)]['subframe_index'];
+  currentFrameHours = Math.floor(currentFrameFullSeconds / 3600);
+  currentFrameHours_remainder = currentFrameFullSeconds%3600;
+  currentFrameMins = Math.floor(currentFrameHours_remainder / 60);
+  currentFrameSeconds = currentFrameHours_remainder%60;
+  
+  // pad with zeros
+  currentFrameHours = ("0" + currentFrameHours).slice (-2);
+  currentFrameMins = ("0" + currentFrameMins).slice (-2);
+  currentFrameSeconds = ("0" + currentFrameSeconds).slice (-2);
+  currentFrameIndex = ("0" + currentFrameIndex).slice (-2);
+  
+  // update document
+  $('#frameTime_HH').attr('value',currentFrameHours);
+  $('#frameTime_MM').attr('value',currentFrameMins);
+  $('#frameTime_SS').attr('value',currentFrameSeconds);
+  $('#frameTime_FF').attr('value',currentFrameIndex);
+  
   return false;
 }
 
 function tl_out()
 {
-  document.getElementById('textTime').value = startTime;
+  updateUIPositionInfo();
 }
 
 function tl_click()
 {
-  time = document.getElementById('textTime').value;
-  setTime(time);
+  frame = Number(saved_time_selection);
+  updateUIPositionInfo();
+  loadNextFrame(PLAYSTATE_RESET);
 } 
