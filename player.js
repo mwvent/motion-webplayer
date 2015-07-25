@@ -46,6 +46,9 @@ $( document ).ready(function() {
   $('#feedbuttons_container').on('click', '.feedUnSelect', function() {
     enterFeed($(this).data("feed"));
   });
+  $('#txtFeedDate').on('change', function() {
+    dateClick();
+  });
 });
 
 function loadNextFrame(newPlayState) {
@@ -186,6 +189,7 @@ function printDateDropdown(feedName)
 
 function dateClick()
 {
+  $('#loading_frameimage').attr('src','images/loading_spinner.gif');
   updateTimeline();
 }
 
