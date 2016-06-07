@@ -31,6 +31,22 @@ if(isset($_GET['frame'])) {
 } else {
   $filename = "throw an error";
 }
+
+if(isset($_GET['q'])) {
+	$quality = $_GET['q'];
+	//if( ! is_int($quality) ) {
+	//	$quality = 70;
+	//}
+	if( $quality < 2 ) {
+		$quality = 2;
+	}
+	if( $quality > 100 ) {
+		$quality = 100;
+	}
+} else {
+	$quality = 70;
+}
+
 // create image object from jpeg files - this allows us to recompress the jpeg and also helps
 // prevent attacks that attempt to retrive another type of file from the filesystem
 // @ to prevent image loading errors destroying JPEG data
@@ -50,4 +66,4 @@ if(!$source) {
 }
 
 header("Content-type: image/jpeg\n\n");
-imagejpeg($source, NULL, 60);
+imagejpeg($source, NULL, $quality);

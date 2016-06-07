@@ -51,6 +51,36 @@ $( document ).ready(function() {
   });
 });
 
+$(document).keydown( function(event) {
+	key_up = 38;
+	key_down = 40;
+	key_left = 37;
+	key_right = 39;
+	key_left_comma = 188;
+	key_right_stop = 190;
+  
+	switch(event.which) {
+		case key_up : 
+			loadNextFrame(PLAYSTATE_STOPPED);
+			break;
+		case key_down :
+			loadNextFrame(PLAYSTATE_STOPPED);
+			break;
+		case key_left :
+			loadNextFrame(PLAYSTATE_PLAY_BACKWARDS);
+			break;
+		case key_right :
+			loadNextFrame(PLAYSTATE_PLAY_FORWARDS);
+			break;
+		case key_left_comma :
+			loadNextFrame(PLAYSTATE_STEP_BACKWARDS);
+			break;
+		case key_right_stop :
+			loadNextFrame(PLAYSTATE_STEP_FORWARDS);
+			break;
+    }
+}); 
+
 function loadNextFrame(newPlayState) {
   if(newPlayState !== PLAYSTATE_NOCHANGE) {
     playState = newPlayState;
@@ -103,10 +133,22 @@ function loadNextFrame(newPlayState) {
       break;
   }
   if(oldFrame !== frame) {
-    var fileHash = frame_list[Number(frame)]['frame_filehash'];
-    imgUrl = 'getframe.php?frame=' + encodeURIComponent(fileHash);
-    img = document.getElementById('image1');
-    img.src = imgUrl;
+    if( playState != PLAYSTATE_PLAY_FORWARDS && playState != PLAYSTATE_PLAY_BACKWARDS ) {
+      var fileHash = frame_list[Number(frame)]['frame_filehash'];
+      imgUrl = 'getframe.php?q=80&frame=' + encodeURIComponent(fileHash);
+      img = document.getElementById('image1');
+      img.src = imgUrl;
+    } else {
+      var fileHash = frame_list[Number(frame)]['frame_filehash'];
+      imgUrl = 'getframe.php?q=15&frame=' + encodeURIComponent(fileHash);
+      img = document.getElementById('image1');
+      img.src = imgUrl;
+    }
+  } else if ( playState == PLAYSTATE_STOPPED ) {
+      var fileHash = frame_list[Number(frame)]['frame_filehash'];
+      imgUrl = 'getframe.php?q=80&frame=' + encodeURIComponent(fileHash);
+      img = document.getElementById('image1');
+      img.src = imgUrl;
   }
 }
 

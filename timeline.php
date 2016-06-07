@@ -19,110 +19,103 @@
 */
 
 include("config.inc");
+ini_set("display_errors", 1);
 
-$width = 640;
+// setup
+$width = 1280;
 $height = 25;
-
 $legendFontSize = 2;
 
 $secPerPixel = (60*60*24) / $width;
+
+// check feed and date supplied
 if(!isset($_GET['feed']) || !isset($_GET['date'])) {
-  $feed='';
-  $date='';
-}  else {
-  $feed = trim($_GET['feed']);
-  $date = trim($_GET['date']);
+	$feed='';
+	$date='';
+} else {
+	$feed = trim($_GET['feed']);
+	$date = trim($_GET['date']);
 }
-if($feed!='' && $date!='')
-{
+if($feed!='' && $date!='') {
   $path_to_images = "$image_root/$feed/$date/";
 }
 
+// create image in RAM with transparent BG
 $im = @imagecreatetruecolor($width, $height)
   or die("Cannot Initialize new GD image stream");
-//$backgroundColor = imagecolorallocate($im, 255, 255, 255);
 imagecolortransparent($im, 0);
-//imagefilledrectangle($im, 0, 0, $width-1, $height-1, $backgroundColor);
-//$transparency = imagecolorallocatealpha($im, 0, 0, $width-1, $height-1, $backgroundColor);
-//imagefill($im, 0, 0, $transparency);
-//die();
+
+// Setup textColor
 $footer = 0;
 $text_color = imagecolorallocate($im, 0, 0, 0);
 $textColor = $text_color;
-//die();
-/*
-imagestring($im, $legendFontSize, 0, $height - $footer,  "00:00", $text_color);
-imagestring($im, $legendFontSize, $width/4-(imagefontwidth($legendFontSize)*2.5), $height - $footer,  "06:00", $text_color);
-imagestring($im, $legendFontSize, $width/2-(imagefontwidth($legendFontSize)*2.5), $height - $footer,  "12:00", $text_color);
-imagestring($im, $legendFontSize, $width/4*3-(imagefontwidth($legendFontSize)*2.5), $height - $footer,  "18:00", $text_color);
-imagestring($im, $legendFontSize, $width-(imagefontwidth($legendFontSize)*5), $height - $footer,  "24:00", $text_color);
 
-imagerectangle($im, 0, 0, $width-1, $height - $footer+1, $textColor);
+// if feed / date supplied build up an image list in the $filenames array
+$filenames = array();
+if(isset($path_to_images)) {
+	// build an array of the image filenames and sort them
+	$directory_handler = opendir( "$path_to_images" );
+	$regs=[]; // tmp array for storing regex matches
+	while( $file = readdir( $directory_handler ) ) {
+		// check if filetype is a supported image - add to array if so
+		if (preg_match('/[0-9]\.(jpg|jpeg|gif|png)$/i',$file)) {
+			$filenames[] = $file;
+		}
+	}
+	sort($filenames);
+	$filecount = count($filenames);
 
-for($i=0; $i<24; $i++)
-  imageline($im, ($width/24)*$i, $height-$footer, ($width/24)*$i, $height-$footer+3, $textColor);
-*/	
-if(isset($path_to_images))
-{
-  $dh = opendir( "$path_to_images" );
-  $filenames = array();
-  while( $file = readdir( $dh ) )
-  {
-    // look for these file types....
-    if (preg_match('/[0-9]\.(jpg|jpeg|gif|png)$/i',$file))
-    {
-      $filenames[] = $file;
-    }
-  }
-  sort($filenames);
+	// goal here is to build up an array, for each pixel of the timelines width increase $xFrames[$x] by the amount of 
+	// captured frames found
+	$xTime = 0; 
+	$maxFrames = 0;
+	// get values for first frame before starting loop
+	$frame = 0;
+	preg_match('/([0-9]{2})([0-9]{2})([0-9]{2})/', $filenames[$frame], $regs);
+	$frameTime = $regs[1]*60*60 + $regs[2]*60 + $regs[3];
+  
+	for($x = 0; $x < $width; $x++) { // on each x co-ord of timline
+		$xTime = $x * $secPerPixel; // the current actual time reached in seconds since midnight
+		// loop through any found frames until at a frame time past our current x-cord
+		$xFrames[$x] = 0;
+		while($frameTime < $xTime) {
+			$frame++;
+			if($frame >= $filecount) {
+				break;
+			}
+			$xFrames[$x]++;
+			// if this is the highest amount of frames found for one x-cord raise the maxFrames value
+			if($xFrames[$x] > $maxFrames) {
+				$maxFrames = $xFrames[$x];
+			}
+			// store the frameTime of the next frame
+			preg_match('/([0-9]{2})([0-9]{2})([0-9]{2})/', $filenames[$frame], $regs);
+			$frameTime = $regs[1]*60*60 + $regs[2]*60 + $regs[3];
+		}
+	}
 
-      $files = count($filenames);
-      $xTime = 0;
-      $maxFrames = 0;
-      $frame = 0;
-      ereg('([0-9]{2})([0-9]{2})([0-9]{2})', $filenames[$frame], $regs);
-      $frameTime = $regs[1]*60*60 + $regs[2]*60 + $regs[3];
-      for($x = 0; $x < $width; $x++)
-      {
-	      $xTime+= $secPerPixel;
-	      $xFrames[$x] = 0;
-	      while($frameTime < $xTime)
-	      {
-		      $frame++;
-		      if($frame >= $files)
-			      break;
-		      $xFrames[$x]++;
-		      if($xFrames[$x] > $maxFrames)
-			      $maxFrames = $xFrames[$x];
-		      ereg('([0-9]{2})([0-9]{2})([0-9]{2})', $filenames[$frame], $regs);
-		      $frameTime = $regs[1]*60*60 + $regs[2]*60 + $regs[3];
-	      }
-      }
-
-      $lineColor = imagecolorallocate($im, 255, 0, 0);
-      for($x = 1; $x < $width; $x++)
-      {
-	      if($xFrames[$x] > 0)
-	      {
-		      $y = ($height * $xFrames[$x]) / $maxFrames;
-		      imageline($im, $x, $height-$footer, $x, $height - $y - $footer, $lineColor);
-	      }
-      }
-      $text_color = imagecolorallocate($im, 0xaa, 0xaa, 0xaa);
-      // imagestring($im, 5, 5, 5,  "$maxFrames $files", $text_color);
-}
-else
-{
+	// again loop through each pixel through the width of the timeline, this time drawing a line
+	// the more frames found the higher the line
+	$lineColor = imagecolorallocate($im, 255, 0, 0);
+	for($x = 1; $x < $width; $x++) {
+	  if($xFrames[$x] > 0) {
+		$y = ($height * $xFrames[$x]) / $maxFrames;
+		imageline($im, $x, $height-$footer, $x, $height - $y - $footer, $lineColor);
+	  }
+	}
+    $text_color = imagecolorallocate($im, 0xaa, 0xaa, 0xaa);
+    // imagestring($im, 5, 5, 5,  "$maxFrames $filecount", $text_color);
+} else { // if no path to images was given reutrn No feed image
       $text_color = imagecolorallocate($im, 0, 0, 0);
       imagestring($im, 5, 5, 5,  "No feed", $text_color);
 }
 
+// return image to browser
+header("Expires: " . date("r "));               // Date in the past
+header("Last-Modified: " . date("r "));          // always modified
+header("Content-type: image/png\n\n");	
+imagepng($im);
 
-      header("Expires: " . date("r "));               // Date in the past
-      header("Last-Modified: " . date("r "));          // always modified
-      header("Content-type: image/png\n\n");	
-      imagepng($im);
-
-      imagedestroy($im);
+imagedestroy($im);
 ?>
 
