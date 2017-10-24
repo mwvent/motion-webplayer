@@ -21,11 +21,37 @@
   
 }
 
-#feedbuttons_div {
-  height: 25px;
+/* Header containing feed and date selectors */
+#header {
+	background-color: yellow;
+	position: absolute;
+	left: 0px;
+	top: 0px;
+	height: 30px;
+	width: 100%;
+	min-width: 100%;
 }
 
+/* Feed selection */
+#feedbuttons_container {
+	position: absolute;
+	height: 20px;
+	font-size: 1em;
+	top: 8px;
+	left: 4px;
+}
+
+#datePicker_container {
+	position: absolute;
+	height: 20px;
+	font-size: 1em;
+	top: 8px;
+	right: 4px;
+}
+
+/* Feed Selection button at various states */
 .feedSelect {
+  margin-top: 5px;
   background: #f2e716;
   background-image: -webkit-linear-gradient(top, #f2e716, #8c8838);
   background-image: -moz-linear-gradient(top, #f2e716, #8c8838);
@@ -73,24 +99,23 @@
   text-decoration: none;
 }
 
-#header {
-  height: 30px;
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-}
-
-#feedbuttons_container {
-  height: 30px;
-}
-
 #frames_container {
   position: absolute; top: 35px; bottom: 60px; width: 100%; display: flex;
   justify-content: space-between;
 }
 
-#frames_container img {
+#image1 {
+	height: 100%;
+	width: 98%;
+}
+
+#loading_frameimage {
+	display: none; position: absolute; top: 40%; left: 45%; height: 10%; width: 10%;
+}
+
+#frames_container video {
   height: 100%;
+  width: 98%;
 }
 
 #footer_container {

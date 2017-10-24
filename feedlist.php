@@ -26,22 +26,25 @@ $excluded_names = array('.', '..', 'lost+found'); // exclude these folders from 
 // iterate through each feed/camera fodler
 $directory_handler = opendir( realpath($image_root) );
 while( $current_directory = readdir( $directory_handler ) ) {
-  $directory_path = realpath($image_root) . "/" . $current_directory;
-  if( !in_array($current_directory, $excluded_names, true) && is_dir( $directory_path )) {
-    $subdirectory_handler = opendir( realpath($image_root) . "/" .$current_directory );
-    $subfolder_list = array();
-    $files[] = $current_directory;
-    // iterate through each folder in the feed folder
-    while( $subdirectory = readdir( $subdirectory_handler  ) ) {
-      $subdirectory_path = realpath($image_root) . "/" . $current_directory . "/" . $subdirectory;
-      if( !in_array($subdirectory, $excluded_names, true) && is_dir($subdirectory_path)) {
-	$subfolder_list[] = $subdirectory;
-      }
-    }
-    sort($subfolder_list);
-    array_unshift($subfolder_list, $current_directory);
-    $feeds[$current_directory] = $subfolder_list;
-  }
+	$directory_path = realpath($image_root) . "/" . $current_directory;
+	if( !in_array($current_directory, $excluded_names, true) && is_dir( $directory_path )) {
+		$subdirectory_handler = opendir( realpath($image_root) . "/" .$current_directory );
+		$subfolder_list = array();
+		$files[] = $current_directory;
+		// iterate through each folder in the feed folder
+		while( $subdirectory = readdir( $subdirectory_handler  ) ) {
+			$subdirectory_path = realpath($image_root) . "/" . $current_directory . "/" . $subdirectory;
+			if( !in_array($subdirectory, $excluded_names, true) && is_dir($subdirectory_path)) {
+				$subfolder_list[$subdirectory] = $subdirectory;
+			} elseif( is_file($subdirectory_path) && strpos($subdirectory_path, ".frames") !== false ) {
+				$subdirectory_string = str_replace( ".frames", "", $subdirectory);
+				$subfolder_list[$subdirectory_string] = $subdirectory_string;
+			}
+		}
+		sort($subfolder_list);
+		array_unshift($subfolder_list, $current_directory);
+		$feeds[$current_directory] = $subfolder_list;
+	}
 }
 sort($feeds);
 

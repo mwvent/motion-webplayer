@@ -37,12 +37,13 @@ if(!isset($_GET['feed']) || !isset($_GET['date'])) {
 	$date = trim($_GET['date']);
 }
 if($feed!='' && $date!='') {
-  $path_to_images = "$image_root/$feed/$date/";
+	$path_to_images = "$image_root/$feed/$date/";
+	$path_to_imagelist = "$image_root/$feed/$date.frames";
 }
 
 // create image in RAM with transparent BG
 $im = @imagecreatetruecolor($width, $height)
-  or die("Cannot Initialize new GD image stream");
+	or die("Cannot Initialize new GD image stream");
 imagecolortransparent($im, 0);
 
 // Setup textColor
@@ -52,16 +53,29 @@ $textColor = $text_color;
 
 // if feed / date supplied build up an image list in the $filenames array
 $filenames = array();
+$regs=[]; // tmp array for storing regex matches
 if(isset($path_to_images)) {
 	// build an array of the image filenames and sort them
-	$directory_handler = opendir( "$path_to_images" );
-	$regs=[]; // tmp array for storing regex matches
-	while( $file = readdir( $directory_handler ) ) {
-		// check if filetype is a supported image - add to array if so
-		if (preg_match('/[0-9]\.(jpg|jpeg|gif|png)$/i',$file)) {
-			$filenames[] = $file;
+	// attempt to read the frame list first - if not try and fall back to listing the directory of jpegs
+	if( file_exists ( "$path_to_imagelist" ) ) {
+		$file = new SplFileObject("$path_to_imagelist");
+		while (!$file->eof()) {
+			$filenm = $file->fgets();
+			// check if filetype is a supported image - add to array if so
+			if (preg_match('/[0-9]\.(jpg|jpeg|gif|png)$/i',$filenm)) {
+				$filenames[] = $filenm;
+			}
+		}
+	} elseif ( file_exists ( "$path_to_images" ) ) {
+		$directory_handler = opendir( "$path_to_images" );
+		while( $file = readdir( $directory_handler ) ) {
+			// check if filetype is a supported image - add to array if so
+			if (preg_match('/[0-9]\.(jpg|jpeg|gif|png)$/i',$file)) {
+				$filenames[] = $file;
+			}
 		}
 	}
+
 	sort($filenames);
 	$filecount = count($filenames);
 
@@ -73,7 +87,7 @@ if(isset($path_to_images)) {
 	$frame = 0;
 	preg_match('/([0-9]{2})([0-9]{2})([0-9]{2})/', $filenames[$frame], $regs);
 	$frameTime = $regs[1]*60*60 + $regs[2]*60 + $regs[3];
-  
+
 	for($x = 0; $x < $width; $x++) { // on each x co-ord of timline
 		$xTime = $x * $secPerPixel; // the current actual time reached in seconds since midnight
 		// loop through any found frames until at a frame time past our current x-cord
@@ -98,16 +112,16 @@ if(isset($path_to_images)) {
 	// the more frames found the higher the line
 	$lineColor = imagecolorallocate($im, 255, 0, 0);
 	for($x = 1; $x < $width; $x++) {
-	  if($xFrames[$x] > 0) {
-		$y = ($height * $xFrames[$x]) / $maxFrames;
-		imageline($im, $x, $height-$footer, $x, $height - $y - $footer, $lineColor);
-	  }
+		if($xFrames[$x] > 0) {
+			$y = ($height * $xFrames[$x]) / $maxFrames;
+			imageline($im, $x, $height-$footer, $x, $height - $y - $footer, $lineColor);
+		}
 	}
-    $text_color = imagecolorallocate($im, 0xaa, 0xaa, 0xaa);
-    // imagestring($im, 5, 5, 5,  "$maxFrames $filecount", $text_color);
+	$text_color = imagecolorallocate($im, 0xaa, 0xaa, 0xaa);
+	// imagestring($im, 5, 5, 5,  "$maxFrames $filecount", $text_color);
 } else { // if no path to images was given reutrn No feed image
-      $text_color = imagecolorallocate($im, 0, 0, 0);
-      imagestring($im, 5, 5, 5,  "No feed", $text_color);
+	$text_color = imagecolorallocate($im, 0, 0, 0);
+	imagestring($im, 5, 5, 5,  "No feed", $text_color);
 }
 
 // return image to browser
